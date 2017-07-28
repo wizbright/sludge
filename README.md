@@ -1,6 +1,6 @@
-#sludge
+# sludge
 
-###File Archiving Tool
+### File Archiving Tool
 
 * Creates by default `./sludge <archivename> <file>`
 * Append with `./sludge -a <archivename> <file>`
