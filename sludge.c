@@ -12,6 +12,8 @@
 // TODO: removing files from archives
 // TODO: if a file is an exact copy, have archive point to the first instance of
 //		 the file that is similar
+// TODO: ^ use a flag to determine if it is a copy, then point to index of same
+//       file.
 
 
 int update(int argc, char **argv, const char *mode) {
