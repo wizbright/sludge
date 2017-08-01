@@ -66,51 +66,41 @@ int list(int argc, char **argv) {
 	return 0;
 }
 
-int ad(int argc, char **argv) {
+int remove(int argc, char **argv) {
 	FILE *archive = fopen(argv[1], "r");
 	struct stat s;
 	uint8_t buf[1024];
-	while (!feof(archive)) {
-		if (!fread(&s.st_size, sizeof(s.st_size), 1, archive)) {
-			break;
+	for(int i = 2; i < argc; i++){
+		while (!feof(archive)) {
+			if (!fread(&s.st_size, sizeof(s.st_size), 1, archive)) {
+				break;
+			}
+			fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
+			size_t l;
+			fread(&l, sizeof(size_t), 1, archive);
+			char name[l + 1];
+			fread(name, l, 1, archive);
+			name[l] = 0;
+			if(argv[1] = name) break;
+			while (s.st_size) {
+				size_t n = fread(buf, 1, s.st_size, archive);
+				s.st_size -= n;
+			}
 		}
-		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
-		size_t l;
-		fread(&l, sizeof(size_t), 1, archive);
-		char name[l + 1];
-		fread(name, l, 1, archive);
-		name[l] = 0;
-		printf("%s\n", name);
-		while (s.st_size) {
-			size_t n = fread(buf, 1, s.st_size, archive);
-			s.st_size -= n;
+		if(feof(archive)) return -1;
+		int countdown = s.st_size;
+		while(countdown){
+			countdown -= fread(buf, 1, s.st_size, archive);
 		}
-	}
-	fclose(archive);
-	return 0;
-}
-
-int remove(int argc, char **argv){
-	FILE *archive = fopen(argv[1], mode);
-	struct stat s;
-	uint8_t buf[1024];
-	for (int i = 2; i < argc; i++) {
-		if (stat(argv[i], &s) == -1) {
-			fprintf(stderr, "Failed to stat file %s\n", argv[i]);
-			return 1;
+		while(!feof(archive)){
+			fread(buf, 1, s.st_size, archive);
+			fseek(archive, -sizeof(buf), SEEK_SET);
+			fwrite(&buf, sizeof(buf), 1, archive);
+			fseek(archive, sizeof(buf), SEEK_SET);
 		}
-		fwrite(&s.st_size, sizeof(s.st_size), 1, archive);
-		fwrite(&s.st_mode, sizeof(s.st_mode), 1, archive);
-		size_t l = strlen(argv[i]);
-		fwrite(&l, sizeof(size_t), 1, archive);
-		fwrite(argv[i], l, 1, archive);
-
-		FILE *in = fopen(argv[i], "r");
-		while (!feof(in)) {
-			size_t n = fread(buf, 1, sizeof(buf), in);
-			fwrite(buf, 1, n, archive);
-		}
-		fclose(in);
+		fseek(archive, 0L, SEEK_END);
+		ftruncate(archive, ftell(archive)-s.st_size);
+		rewind(archive);
 	}
 	fclose(archive);
 	return 0;
@@ -165,17 +155,17 @@ int main(int argc, char **argv) {
 		"Extract: ./gunk -e <archiveName> <file>\n"
 		"	Extracts all files unless giving a filename.\n";
 	switch (getopt(argc, argv, "l:a::e::")) {
-	case 'l':
-		return list(argc - 1, argv + 1);
-	case 'a':
-		return update(argc - 1, argv + 1, "a+");
-	case 'e':
-		return extract(argc - 1, argv + 1);
-	default:
-		if (argc < 2) {
-			fprintf(stderr, "%s", usage);
-			return 1;
-		}
-		return update(argc, argv, "w+");
+		case 'l':
+			return list(argc - 1, argv + 1);
+		case 'a':
+			return update(argc - 1, argv + 1, "a+");
+		case 'e':
+			return extract(argc - 1, argv + 1);
+		default:
+			if (argc < 2) {
+				fprintf(stderr, "%s", usage);
+				return 1;
+			}
+			return update(argc, argv, "w+");
 	}
 }
