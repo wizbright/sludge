@@ -66,6 +66,56 @@ int list(int argc, char **argv) {
 	return 0;
 }
 
+int ad(int argc, char **argv) {
+	FILE *archive = fopen(argv[1], "r");
+	struct stat s;
+	uint8_t buf[1024];
+	while (!feof(archive)) {
+		if (!fread(&s.st_size, sizeof(s.st_size), 1, archive)) {
+			break;
+		}
+		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
+		size_t l;
+		fread(&l, sizeof(size_t), 1, archive);
+		char name[l + 1];
+		fread(name, l, 1, archive);
+		name[l] = 0;
+		printf("%s\n", name);
+		while (s.st_size) {
+			size_t n = fread(buf, 1, s.st_size, archive);
+			s.st_size -= n;
+		}
+	}
+	fclose(archive);
+	return 0;
+}
+
+int remove(int argc, char **argv){
+	FILE *archive = fopen(argv[1], mode);
+	struct stat s;
+	uint8_t buf[1024];
+	for (int i = 2; i < argc; i++) {
+		if (stat(argv[i], &s) == -1) {
+			fprintf(stderr, "Failed to stat file %s\n", argv[i]);
+			return 1;
+		}
+		fwrite(&s.st_size, sizeof(s.st_size), 1, archive);
+		fwrite(&s.st_mode, sizeof(s.st_mode), 1, archive);
+		size_t l = strlen(argv[i]);
+		fwrite(&l, sizeof(size_t), 1, archive);
+		fwrite(argv[i], l, 1, archive);
+
+		FILE *in = fopen(argv[i], "r");
+		while (!feof(in)) {
+			size_t n = fread(buf, 1, sizeof(buf), in);
+			fwrite(buf, 1, n, archive);
+		}
+		fclose(in);
+	}
+	fclose(archive);
+	return 0;
+}
+
 int extract(int argc, char **argv){
 	FILE *archive = fopen(argv[1], "r");
 	struct stat s;
@@ -101,7 +151,6 @@ int extract(int argc, char **argv){
 	}
 	fclose(archive);
 	return 0;
-
 }
 
 int main(int argc, char **argv) {
@@ -129,5 +178,4 @@ int main(int argc, char **argv) {
 		}
 		return update(argc, argv, "w+");
 	}
-	return 0;
 }
