@@ -106,14 +106,14 @@ int extract(int argc, char **argv){
 
 int main(int argc, char **argv) {
 	const char *usage =
-		"	gunk is an archiving utility\n"
-		"Default: ./gunk <archiveName> <file> etc.\n"
+		"	sludge is an archiving utility\n"
+		"Default: ./sludge <archiveName> <file> etc.\n"
 		"	Archives all files passed to it.\n"
-		"List: 	  ./gunk -l <acrhiveName>\n"
+		"List: 	  ./sludge -l <acrhiveName>\n"
 		"	Lists files from the archive.\n"
-		"Append:  ./gunk -a <archiveName> <file>\n"
+		"Append:  ./sludge -a <archiveName> <file>\n"
 		"	Appends the file to the archive.\n"
-		"Extract: ./gunk -e <archiveName> <file>\n"
+		"Extract: ./sludge -e <archiveName> <file>\n"
 		"	Extracts all files unless giving a filename.\n";
 	switch (getopt(argc, argv, "l:a::e::")) {
 	case 'l':
