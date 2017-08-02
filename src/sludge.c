@@ -16,6 +16,7 @@
 //       file.
 // TODO: 
 
+static int crcValue = 42;
 
 int update(int argc, char **argv, const char *mode) {
 	FILE *archive = fopen(argv[1], mode);
@@ -26,17 +27,21 @@ int update(int argc, char **argv, const char *mode) {
 			fprintf(stderr, "Failed to stat file %s\n", argv[i]);
 			return 1;
 		}
-		if(multi(argc, argv){
-			//handle identical files
-			break;
-		}
 		fwrite(&s.st_size, sizeof(s.st_size), 1, archive);
 		fwrite(&s.st_mode, sizeof(s.st_mode), 1, archive);
 		size_t l = strlen(argv[i]);
 		fwrite(&l, sizeof(size_t), 1, archive);
 		fwrite(argv[i], l, 1, archive);
-
 		FILE *in = fopen(argv[i], "r");
+		//do hash comparison
+		//zero if is not link
+		//else offset of file		
+		int linkOffset = 0;
+		uint32_t newFileHash = crc32(crcValue, in, l);
+		uint32_t currentFileHash = crc32(crcValue, , );
+		if(newFileHash == currentFileHash){
+			linkOffset = ftell(archive);
+		}
 		while (!feof(in)) {
 			size_t n = fread(buf, 1, sizeof(buf), in);
 			fwrite(buf, 1, n, archive);
