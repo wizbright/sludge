@@ -70,37 +70,6 @@ int update(int argc, char **argv, const char *mode) {
 	return 0;
 }
 
-int multi(int argc, char **argv){
-	int list(int argc, char **argv) {
-	FILE *archive = fopen(argv[1], "r");
-	FILE *addition = fopen(argv[2], "r");
-	struct stat s;
-	uint8_t buf[1024];
-	uint8_t obuf[1024];
-	while (!feof(archive) || !feof(addition)) {
-		if (!fread(&s.st_size, sizeof(s.st_size), 1, archive) || !fread(fread(&s.st_size, sizeof(s.st_size), 1, addition)) {
-			break;
-		}
-		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
-		size_t l;
-		fread(&l, sizeof(size_t), 1, archive);
-		char name[l + 1];
-		fread(name, l, 1, archive);
-		name[l] = 0;
-		//printf("%s\n", name);
-		while (s.st_size) {
-			size_t n = fread(buf, 1, s.st_size, archive);
-			size_t z = fread(obuf, 1, s.st_size, addition);
-			if(obuf != buf){
-				return -1;
-			}
-			s.st_size -= n;
-		}
-	}
-	fclose(archive);	
-	fclose(addition);
-	return 0;
-}
 
 int list(int argc, char **argv) {
 	FILE *archive = fopen(argv[1], "r");
