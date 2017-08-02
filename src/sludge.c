@@ -15,6 +15,8 @@
 // TODO: ^ use a flag to determine if it is a copy, then point to index of same
 //       file.
 // TODO: update list, update, extract to reflect new header format
+// TODO: update switch case in main to reflect mutually exclusive options for
+//       command line invocation
 
 /* New header format: 
  * size_of_file    st.size
@@ -25,6 +27,18 @@
  * name_length     size_t
  * file_name       dependent upon value of name_length
 */
+
+/***********************************************
+ * function: update                            *
+ *                                             *
+ * update functions as both an appending       *
+ * utility and also the default archive        *
+ * creator.                                    *
+ *                                             *
+ * Note: file contents are only added if there *
+ * is not another copy of the exact same data  *
+ * already in the archive                      *
+ **********************************************/
 
 
 int update(int argc, char **argv, const char *mode) {
@@ -53,6 +67,17 @@ int update(int argc, char **argv, const char *mode) {
 	return 0;
 }
 
+
+/***********************************************
+ * function: list                              *
+ *                                             *
+ * list gives a listing of all unique file     *
+ * file descriptors in the archive             *
+ *                                             *
+ *                                             *
+ *                                             *
+ *                                             *
+ **********************************************/
 int list(int argc, char **argv) {
 	FILE *archive = fopen(argv[1], "r");
 	struct stat s;
@@ -74,6 +99,17 @@ int list(int argc, char **argv) {
 	fclose(archive);
 	return 0;
 }
+
+/***********************************************
+ * function: extract                           *
+ *                                             *
+ * extract creates a new file with the same    *
+ * descriptor, permissions, and file contents  *
+ * as the original contained in the archive    *
+ *                                             *
+ *                                             *
+ *                                             *
+ **********************************************/
 
 int extract(int argc, char **argv){
 	FILE *archive = fopen(argv[1], "r");
@@ -113,17 +149,46 @@ int extract(int argc, char **argv){
 
 }
 
+/***********************************************
+ * function: remove                            *
+ *                                             *
+ * Removes specified files from the archive    *
+ * and also extracts data into new files       *
+ *                                             *
+ * Note: file data is only removed IF there    *
+ * are no other descriptors that reference     *
+ * the same data block                         *
+ **********************************************/
+
+int remove(int argc, char* argv[]) {
+
+  return 0;
+}
+
+/***********************************************
+ * function: main                              *
+ *                                             *
+ * Handles user input and directs program      *
+ * flow towards the repsective functions       *
+ *                                             *
+ *                                             *
+ *                                             *
+ *                                             *
+ **********************************************/
+
 int main(int argc, char **argv) {
 	const char *usage =
-		"	gunk is an archiving utility\n"
-		"Default: ./gunk <archiveName> <file> etc.\n"
+		"	sludge is an archiving utility\n"
+		"Default: ./sludge <archiveName> <file> ...\n"
 		"	Archives all files passed to it.\n"
-		"List: 	  ./gunk -l <acrhiveName>\n"
+		"List: 	  ./sludge -l <acrhiveName>\n"
 		"	Lists files from the archive.\n"
-		"Append:  ./gunk -a <archiveName> <file>\n"
+		"Append:  ./sludge -a <archiveName> <file1> ...\n"
 		"	Appends the file to the archive.\n"
-		"Extract: ./gunk -e <archiveName> <file>\n"
-		"	Extracts all files unless giving a filename.\n";
+		"Extract: ./sludge -e <archiveName> <file1> ...\n"
+		"	Extracts all files unless giving a filename.\n"
+	        "Remove:  ./sludge -r <archiveName> <file1> ...\n"
+	        "       Removes all files unless given a filename\n";
 	switch (getopt(argc, argv, "l:a::e::")) {
 	case 'l':
 		return list(argc - 1, argv + 1);
