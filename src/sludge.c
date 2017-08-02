@@ -14,6 +14,7 @@
 //		 the file that is similar
 // TODO: ^ use a flag to determine if it is a copy, then point to index of same
 //       file.
+// TODO: 
 
 
 int update(int argc, char **argv, const char *mode) {
@@ -93,10 +94,8 @@ int list(int argc, char **argv) {
 		fread(name, l, 1, archive);
 		name[l] = 0;
 		printf("%s\n", name);
-		while (s.st_size) {
-			size_t n = fread(buf, 1, s.st_size, archive);
-			s.st_size -= n;
-		}
+		
+		fseek(archive,s.st_size,SEEK_CUR);		
 	}
 	fclose(archive);
 	return 0;
