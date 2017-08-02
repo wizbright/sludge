@@ -182,6 +182,9 @@ int extract(int argc, char **argv){
 			break;
 		}
 		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
+		uint32_t hash, offset;
+		fread(&hash, sizeof(hash), 1, archive);
+		fread(&hash, sizeof(offset), 1, archive);
 		size_t l;
 		fread(&l, sizeof(s.st_size), 1, archive);
 		char name[l + 1];
@@ -196,6 +199,8 @@ int extract(int argc, char **argv){
 			}
 		}
 		if (extract) {
+		        int cur = ftell(archive);
+			fseek(archive, offset, SEEK_SET);
 			FILE *out = fopen(name, "w");
 			while (s.st_size) {
 				size_t n = fread(buf, 1, s.st_size, archive);
@@ -204,6 +209,7 @@ int extract(int argc, char **argv){
 			}
 			fclose(out);
 			chmod(name, s.st_mode);
+			fseek(archive, cur, SEEK_SET);
 		}
 	}
 	fclose(archive);
