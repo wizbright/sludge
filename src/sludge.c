@@ -14,6 +14,7 @@
 //		 the file that is similar
 // TODO: ^ use a flag to determine if it is a copy, then point to index of same
 //       file.
+// TODO: 
 
 
 int update(int argc, char **argv, const char *mode) {
@@ -57,10 +58,8 @@ int list(int argc, char **argv) {
 		fread(name, l, 1, archive);
 		name[l] = 0;
 		printf("%s\n", name);
-		while (s.st_size) {
-			size_t n = fread(buf, 1, s.st_size, archive);
-			s.st_size -= n;
-		}
+		
+		fseek(archive,s.st_size,SEEK_CUR);		
 	}
 	fclose(archive);
 	return 0;
@@ -106,14 +105,14 @@ int extract(int argc, char **argv){
 
 int main(int argc, char **argv) {
 	const char *usage =
-		"	sludge is an archiving utility\n"
-		"Default: ./sludge <archiveName> <file> etc.\n"
+		"	gunk is an archiving utility\n"
+		"Default: ./gunk <archiveName> <file> etc.\n"
 		"	Archives all files passed to it.\n"
-		"List: 	  ./sludge -l <acrhiveName>\n"
+		"List: 	  ./gunk -l <acrhiveName>\n"
 		"	Lists files from the archive.\n"
-		"Append:  ./sludge -a <archiveName> <file>\n"
+		"Append:  ./gunk -a <archiveName> <file>\n"
 		"	Appends the file to the archive.\n"
-		"Extract: ./sludge -e <archiveName> <file>\n"
+		"Extract: ./gunk -e <archiveName> <file>\n"
 		"	Extracts all files unless giving a filename.\n";
 	switch (getopt(argc, argv, "l:a::e::")) {
 	case 'l':
