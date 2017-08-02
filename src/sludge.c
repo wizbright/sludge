@@ -18,13 +18,23 @@
 
 /* New header format: 
  * size_of_file    st.size
- * file_modes      st.mode
  * hash            uint32_t
- * dupe_flag       uint32_t   *This is for future proofing 
-   offset                     (big archives with big offsets)
- * name_length     size_t
- * file_name       dependent upon value of name_length
+ * file_count      uint8_t
+ * array of fd structs:
+   - file_name       char[256]
+   - perms           mode_t
 */
+
+typedef struct header {
+  st_size    file_size;
+  uint32_t   hash;
+  uint8_t    file_count;
+} header;
+
+typedef struct fd{
+  char       file_name[256];
+  mode_t     perms;
+} fd;
 
 int permissionPrint(mode_t perms) {
   printf( (perms & S_IRUSR) ? "r" : "-");
