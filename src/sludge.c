@@ -7,14 +7,24 @@
 #include <fcntl.h>
 #include <string.h>
 #include <getopt.h>
-
+#include "crc32.h"
 // TODO: Add indexing of files
 // TODO: removing files from archives
 // TODO: if a file is an exact copy, have archive point to the first instance of
 //		 the file that is similar
 // TODO: ^ use a flag to determine if it is a copy, then point to index of same
 //       file.
-// TODO: 
+// TODO: update list, update, extract to reflect new header format
+
+/* New header format: 
+ * size_of_file    st.size
+ * file_modes      st.mode
+ * hash            uint32_t
+ * dupe_flag       uint32_t   *This is for future proofing 
+   offset                     (big archives with big offsets)
+ * name_length     size_t
+ * file_name       dependent upon value of name_length
+*/
 
 
 int update(int argc, char **argv, const char *mode) {
