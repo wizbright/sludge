@@ -26,6 +26,19 @@
  * file_name       dependent upon value of name_length
 */
 
+int permissionPrint(mode_t perms) {
+  printf( (perms & S_IRUSR) ? "r" : "-");
+  printf( (perms & S_IWUSR) ? "w" : "-");
+  printf( (perms & S_IXUSR) ? "x" : "-");
+  printf( (perms & S_IRGRP) ? "r" : "-");
+  printf( (perms & S_IWGRP) ? "w" : "-");
+  printf( (perms & S_IXGRP) ? "x" : "-");
+  printf( (perms & S_IROTH) ? "r" : "-");
+  printf( (perms & S_IWOTH) ? "w" : "-");
+  printf( (perms & S_IXOTH) ? "x" : "-");
+  return 0;
+}
+
 
 int update(int argc, char **argv, const char *mode) {
 	FILE *archive = fopen(argv[1], mode);
@@ -91,6 +104,10 @@ int multi(int argc, char **argv){
 
 int list(int argc, char **argv) {
 	FILE *archive = fopen(argv[1], "r");
+	if (archive == NULL) {
+	  fprintf(stderr,"Error opening archive %s. Exiting...\n",argv[1]);
+	  return 1;
+	}
 	struct stat s;
 	uint8_t buf[1024];
 	while (!feof(archive)) {
@@ -98,14 +115,19 @@ int list(int argc, char **argv) {
 			break;
 		}
 		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
+		uint32_t hash, offset;
+		fread(&hash, sizeof(hash), 1, archive);
+		fread(&hash, sizeof(offset), 1, archive);
 		size_t l;
 		fread(&l, sizeof(size_t), 1, archive);
 		char name[l + 1];
 		fread(name, l, 1, archive);
 		name[l] = 0;
-		printf("%s\n", name);
-		
-		fseek(archive,s.st_size,SEEK_CUR);		
+		permissionsPrint(s.st_mode);
+		printf("\t%s\n", name);
+		if (!offset) {
+		    fseek(archive,s.st_size,SEEK_CUR);
+		}
 	}
 	fclose(archive);
 	return 0;
