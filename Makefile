@@ -1,12 +1,18 @@
-# Makefile for sludge
 
-CC=gcc
 
-.PHONY: clean
+all: sludge 
 
-default: src/sludge.c
-	$(CC) -g -o sludge src/sludge.c
+sludge: sludge.o crc32.o
+	gcc -o sludge sludge.o crc32.o
+	mv sludge ./bin
+	rm *.o
 
-clean: 
-	@echo "Cleaning up"
-	rm sludge
+sludge.o: src/sludge.c src/crc32.h
+	gcc -c src/sludge.c
+
+crc32.o: src/crc32.c src/crc32.h
+	gcc -c src/crc32.c
+
+clean:
+	rm *.o -rf
+	rm ./bin/sludge
