@@ -25,7 +25,7 @@
    - file_name       char[256]
    - perms           mode_t
 */
-int update(int argc, char **argv);
+int update(int argc, char **argv, const char *mode);
 int list(int argc, char **argv);
 int extract(int argc, char **argv);
 int removal(int argc, char **argv);
