@@ -25,6 +25,11 @@
    - file_name       char[256]
    - perms           mode_t
 */
+int update(int argc, char **argv);
+int list(int argc, char **argv);
+int extract(int argc, char **argv);
+int removal(int argc, char **argv);
+
 
 typedef struct header {
   off_t    file_size;
@@ -50,24 +55,6 @@ int permissionPrint(mode_t perms) {
   return 0;
 }
 
-typedef struct fd{
-  char       file_name[256];
-  mode_t     perms;
-} fd;
-
-/*int permissionPrint(mode_t perms) {
-  printf( (perms & S_IRUSR) ? "r" : "-");
-  printf( (perms & S_IWUSR) ? "w" : "-");
-  printf( (perms & S_IXUSR) ? "x" : "-");
-  printf( (perms & S_IRGRP) ? "r" : "-");
-  printf( (perms & S_IWGRP) ? "w" : "-");
-  printf( (perms & S_IXGRP) ? "x" : "-");
-  printf( (perms & S_IROTH) ? "r" : "-");
-  printf( (perms & S_IWOTH) ? "w" : "-");
-  printf( (perms & S_IXOTH) ? "x" : "-");
-  return 0;
-}
-*/
 
 int update(int argc, char **argv, const char *mode) {
 	FILE *archive = fopen(argv[1], mode);
