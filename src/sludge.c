@@ -7,16 +7,48 @@
 #include <fcntl.h>
 #include <string.h>
 #include <getopt.h>
-
+#include "crc32.h"
 // TODO: Add indexing of files
 // TODO: removing files from archives
 // TODO: if a file is an exact copy, have archive point to the first instance of
 //		 the file that is similar
 // TODO: ^ use a flag to determine if it is a copy, then point to index of same
 //       file.
-// TODO: 
+// TODO: update list, update, extract to reflect new header format
 
-static int crcValue = 42;
+/* New header format: 
+ * size_of_file    st.size
+ * hash            uint32_t
+ * file_count      uint8_t
+ * array of fd structs:
+   - file_name       char[256]
+   - perms           mode_t
+*/
+
+typedef struct header {
+  st_size    file_size;
+  uint32_t   hash;
+  uint8_t    file_count;
+} header;
+
+typedef struct fd{
+  char       file_name[256];
+  mode_t     perms;
+} fd;
+
+int permissionPrint(mode_t perms) {
+  printf( (perms & S_IRUSR) ? "r" : "-");
+  printf( (perms & S_IWUSR) ? "w" : "-");
+  printf( (perms & S_IXUSR) ? "x" : "-");
+  printf( (perms & S_IRGRP) ? "r" : "-");
+  printf( (perms & S_IWGRP) ? "w" : "-");
+  printf( (perms & S_IXGRP) ? "x" : "-");
+  printf( (perms & S_IROTH) ? "r" : "-");
+  printf( (perms & S_IWOTH) ? "w" : "-");
+  printf( (perms & S_IXOTH) ? "x" : "-");
+  return 0;
+}
+
 
 int update(int argc, char **argv, const char *mode) {
 	FILE *archive = fopen(argv[1], mode);
@@ -32,16 +64,8 @@ int update(int argc, char **argv, const char *mode) {
 		size_t l = strlen(argv[i]);
 		fwrite(&l, sizeof(size_t), 1, archive);
 		fwrite(argv[i], l, 1, archive);
+
 		FILE *in = fopen(argv[i], "r");
-		//do hash comparison
-		//zero if is not link
-		//else offset of file		
-		int linkOffset = 0;
-		uint32_t newFileHash = crc32(crcValue, in, l);
-		uint32_t currentFileHash = crc32(crcValue, , );
-		if(newFileHash == currentFileHash){
-			linkOffset = ftell(archive);
-		}
 		while (!feof(in)) {
 			size_t n = fread(buf, 1, sizeof(buf), in);
 			fwrite(buf, 1, n, archive);
@@ -52,40 +76,13 @@ int update(int argc, char **argv, const char *mode) {
 	return 0;
 }
 
-int multi(int argc, char **argv){
-	int list(int argc, char **argv) {
-	FILE *archive = fopen(argv[1], "r");
-	FILE *addition = fopen(argv[2], "r");
-	struct stat s;
-	uint8_t buf[1024];
-	uint8_t obuf[1024];
-	while (!feof(archive) || !feof(addition)) {
-		if (!fread(&s.st_size, sizeof(s.st_size), 1, archive) || !fread(fread(&s.st_size, sizeof(s.st_size), 1, addition)) {
-			break;
-		}
-		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
-		size_t l;
-		fread(&l, sizeof(size_t), 1, archive);
-		char name[l + 1];
-		fread(name, l, 1, archive);
-		name[l] = 0;
-		//printf("%s\n", name);
-		while (s.st_size) {
-			size_t n = fread(buf, 1, s.st_size, archive);
-			size_t z = fread(obuf, 1, s.st_size, addition);
-			if(obuf != buf){
-				return -1;
-			}
-			s.st_size -= n;
-		}
-	}
-	fclose(archive);	
-	fclose(addition);
-	return 0;
-}
 
 int list(int argc, char **argv) {
 	FILE *archive = fopen(argv[1], "r");
+	if (archive == NULL) {
+	  fprintf(stderr,"Error opening archive %s. Exiting...\n",argv[1]);
+	  return 1;
+	}
 	struct stat s;
 	uint8_t buf[1024];
 	while (!feof(archive)) {
@@ -93,14 +90,19 @@ int list(int argc, char **argv) {
 			break;
 		}
 		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
+		uint32_t hash, offset;
+		fread(&hash, sizeof(hash), 1, archive);
+		fread(&hash, sizeof(offset), 1, archive);
 		size_t l;
 		fread(&l, sizeof(size_t), 1, archive);
 		char name[l + 1];
 		fread(name, l, 1, archive);
 		name[l] = 0;
-		printf("%s\n", name);
-		
-		fseek(archive,s.st_size,SEEK_CUR);		
+		permissionsPrint(s.st_mode);
+		printf("\t%s\n", name);
+		if (!offset) {
+		    fseek(archive,s.st_size,SEEK_CUR);
+		}
 	}
 	fclose(archive);
 	return 0;
@@ -121,7 +123,8 @@ int remove(int argc, char **argv) {
 			char name[l + 1];
 			fread(name, l, 1, archive);
 			name[l] = 0;
-			if(argv[1] = name) break;
+			if(argv[1] = name) 
+				break;
 			while (s.st_size) {
 				size_t n = fread(buf, 1, s.st_size, archive);
 				s.st_size -= n;
@@ -150,33 +153,35 @@ int extract(int argc, char **argv){
 	FILE *archive = fopen(argv[1], "r");
 	struct stat s;
 	uint8_t buf[1024];
+	header heading;
+	fd fdlinks;
+
 	while (!feof(archive)) {
-		if (!fread(&s.st_size, sizeof(s.st_size), 1, archive)) {
+		if (!fread(header, sizeof(header), 1, archive)) {
 			break;
 		}
-		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
-		size_t l;
-		fread(&l, sizeof(s.st_size), 1, archive);
-		char name[l + 1];
-		fread(name, l, 1, archive);
-		name[l] = 0;
+		fread(fdlinks, sizeof(fd), 1, archive);
 		bool extract = true;
 		for (size_t i = 2; i < argc; ++i) {
 			extract = false;
-			if (strcmp(argv[i], name) == 0) {
+			if (strcmp(argv[i], fdlinks.file_name) == 0) {
 				extract = true;
 				break;
 			}
 		}
+		fseek(archive, sizeof(fd)*(heading.file_count-1), SEEK_SET);
 		if (extract) {
+		        int cur = ftell(archive);
 			FILE *out = fopen(name, "w");
+			int fileSizeCounter = heading.file_size;
 			while (s.st_size) {
-				size_t n = fread(buf, 1, s.st_size, archive);
+				size_t n = fread(buf, 1, heading.file_size, archive);
 				fwrite(buf, n, 1, out);
-				s.st_size -= n;
+				fileSizeCounter -= n;
 			}
 			fclose(out);
-			chmod(name, s.st_mode);
+			chmod(name, fdlinks.perms);
+			fseek(archive, cur, SEEK_SET);
 		}
 	}
 	fclose(archive);
