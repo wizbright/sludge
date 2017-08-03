@@ -27,7 +27,7 @@
 */
 
 typedef struct header {
-  size_t     file_size;
+  off_t    file_size;
   uint32_t   hash;
   uint8_t    file_count;
 } header;
@@ -50,6 +50,24 @@ int permissionPrint(mode_t perms) {
   return 0;
 }
 
+typedef struct fd{
+  char       file_name[256];
+  mode_t     perms;
+} fd;
+
+/*int permissionPrint(mode_t perms) {
+  printf( (perms & S_IRUSR) ? "r" : "-");
+  printf( (perms & S_IWUSR) ? "w" : "-");
+  printf( (perms & S_IXUSR) ? "x" : "-");
+  printf( (perms & S_IRGRP) ? "r" : "-");
+  printf( (perms & S_IWGRP) ? "w" : "-");
+  printf( (perms & S_IXGRP) ? "x" : "-");
+  printf( (perms & S_IROTH) ? "r" : "-");
+  printf( (perms & S_IWOTH) ? "w" : "-");
+  printf( (perms & S_IXOTH) ? "x" : "-");
+  return 0;
+}
+*/
 
 int update(int argc, char **argv, const char *mode) {
 	FILE *archive = fopen(argv[1], mode);
@@ -68,6 +86,11 @@ int update(int argc, char **argv, const char *mode) {
 			fprintf(stderr, "Failed to stat file %s\n", argv[i]);
 			return 1;
 		}
+		fwrite(&s.st_size, sizeof(s.st_size), 1, archive);
+		fwrite(&s.st_mode, sizeof(s.st_mode), 1, archive);
+		size_t l = strlen(argv[i]);
+		fwrite(&l, sizeof(size_t), 1, archive);
+		fwrite(argv[i], l, 1, archive);
 		FILE *in = fopen(argv[i], "r");
 		if (in == NULL) {
 		  fprintf(stderr,"Failed to open file %s for reading",argv[i]);
@@ -75,7 +98,6 @@ int update(int argc, char **argv, const char *mode) {
 		  return 1;
 		}
 		found = false;
-
 		buf = (uint8_t*) malloc(sizeof(uint8_t) * s.st_size);
 		if ((fread(buf,sizeof(uint8_t), s.st_size,in)) != s.st_size) {
 		    fprintf(stderr,"Error reading data from file %s. Exiting...\n",argv[i]);
@@ -169,7 +191,6 @@ int update(int argc, char **argv, const char *mode) {
 	return 0;
 }
 
-
 int list(int argc, char **argv) {
 	FILE *archive = fopen(argv[1], "r");
 	if (archive == NULL) {
@@ -195,7 +216,9 @@ int list(int argc, char **argv) {
 	return 0;
 }
 
-int remove(int argc, char **argv) {
+int removal(int argc, char **argv) {
+	extract(argc, argv);
+
 	FILE *archive = fopen(argv[1], "r");
 	struct stat s;
 	uint8_t buf[1024];
@@ -210,7 +233,8 @@ int remove(int argc, char **argv) {
 			char name[l + 1];
 			fread(name, l, 1, archive);
 			name[l] = 0;
-			if(argv[1] = name) break;
+			if(argv[1] == name) 
+				break;
 			while (s.st_size) {
 				size_t n = fread(buf, 1, s.st_size, archive);
 				s.st_size -= n;
@@ -228,7 +252,7 @@ int remove(int argc, char **argv) {
 			fseek(archive, sizeof(buf), SEEK_SET);
 		}
 		fseek(archive, 0L, SEEK_END);
-		ftruncate(archive, ftell(archive)-s.st_size);
+		truncate(argv[1], ftell(archive)-s.st_size);
 		rewind(archive);
 	}
 	fclose(archive);
@@ -239,38 +263,35 @@ int extract(int argc, char **argv){
 	FILE *archive = fopen(argv[1], "r");
 	struct stat s;
 	uint8_t buf[1024];
+	header heading;
+	fd fdlinks;
+
 	while (!feof(archive)) {
-		if (!fread(&s.st_size, sizeof(s.st_size), 1, archive)) {
+		if (!fscanf(archive, "%d%s%d", heading.file_size, heading.hash, heading.file_count)) {
 			break;
 		}
-		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
-		uint32_t hash, offset;
-		fread(&hash, sizeof(hash), 1, archive);
-		fread(&hash, sizeof(offset), 1, archive);
-		size_t l;
-		fread(&l, sizeof(s.st_size), 1, archive);
-		char name[l + 1];
-		fread(name, l, 1, archive);
-		name[l] = 0;
+		fread(archive, "%s%s", fdlinks.file_name, fdlinks.perms);
 		bool extract = true;
 		for (size_t i = 2; i < argc; ++i) {
 			extract = false;
-			if (strcmp(argv[i], name) == 0) {
+			if (argc == 2 || strcmp(argv[i], fdlinks.file_name) == 0) {
 				extract = true;
 				break;
 			}
 		}
+		fseek(archive, sizeof(fd)*(heading.file_count-1), SEEK_SET);
 		if (extract) {
 		        int cur = ftell(archive);
-			fseek(archive, offset, SEEK_SET);
-			FILE *out = fopen(name, "w");
+      }
+			FILE *out = fopen(fdlinks.file_name, "w");
+			int fileSizeCounter = heading.file_size;
 			while (s.st_size) {
-				size_t n = fread(buf, 1, s.st_size, archive);
+				size_t n = fread(buf, 1, heading.file_size, archive);
 				fwrite(buf, n, 1, out);
-				s.st_size -= n;
+				fileSizeCounter -= n;
 			}
 			fclose(out);
-			chmod(name, s.st_mode);
+			chmod(fdlinks.file_name, fdlinks.perms);
 			fseek(archive, cur, SEEK_SET);
 		}
 	}
@@ -299,7 +320,7 @@ int main(int argc, char **argv) {
 		case 'e':
 			return extract(argc - 1, argv + 1);
 		case 'r':
-			return remove(argc - 1, argv + 1);
+			return removal(argc - 1, argv + 1);
 		default:
 			if (argc < 2) {
 				fprintf(stderr, "%s", usage);
