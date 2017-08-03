@@ -2,7 +2,7 @@
 
 default: all
 
-all: sludge 
+all: sludge files
 
 sludge: sludge.o crc32.o
 	gcc -o sludge sludge.o crc32.o
