@@ -17,7 +17,7 @@
 //       file.
 // TODO: update list, update, extract to reflect new header format
 
-/* New header format: 
+/* New header format:
  * size_of_file    st.size
  * hash            uint32_t
  * file_count      uint8_t
@@ -29,6 +29,13 @@ int update(int argc, char **argv, const char *mode);
 int list(int argc, char **argv);
 int extract(int argc, char **argv);
 int removal(int argc, char **argv);
+
+
+// Prototypes
+int permissionPrint(mode_t perms);
+int extract(int argc, char **argv);
+int removal(int argc, char **argv);
+int update(int argc, char **argv, const char *mode);
 
 
 typedef struct header {
@@ -94,7 +101,7 @@ int update(int argc, char **argv, const char *mode) {
 		    return 1;
 		}
 		hash = crc32(0,buf,s.st_size);
-		
+
 		int loc;
 		while (!feof(archive) && !found) {
 		  loc = ftell(archive);
@@ -108,7 +115,7 @@ int update(int argc, char **argv, const char *mode) {
 		    break;
 		  }
 		}
-		
+
 		if (found) {
 		  file_descript = (fd*) malloc (sizeof(struct fd) * file_header.file_count);
 		  fread(&file_descript,sizeof(struct fd),file_header.file_count,archive);
@@ -174,7 +181,7 @@ int update(int argc, char **argv, const char *mode) {
 		fclose(in);
 	        free(buf);
                 free(file_descript);
-	}	
+	}
 	return 0;
 }
 
@@ -197,14 +204,17 @@ int list(int argc, char **argv) {
 	    permissionPrint(file_descript.perms);
 	    printf("\t%s\n",file_descript.file_name);
 	  }
-	  fseek(archive,file_header.file_size,SEEK_CUR);		
+	  fseek(archive,file_header.file_size,SEEK_CUR);
 	}
 	fclose(archive);
 	return 0;
 }
 
 int removal(int argc, char **argv) {
-	extract(argc, argv);
+	if (extract(argc, argv) != 0){
+		printf("Unable to extract for removal.\n");
+		return 0;
+	}
 
 	FILE *archive = fopen(argv[1], "r");
 	struct stat s;
@@ -220,7 +230,7 @@ int removal(int argc, char **argv) {
 			char name[l + 1];
 			fread(name, l, 1, archive);
 			name[l] = 0;
-			if(argv[1] == name) 
+			if(argv[1] == name)
 				break;
 			while (s.st_size) {
 				size_t n = fread(buf, 1, s.st_size, archive);
@@ -252,12 +262,13 @@ int extract(int argc, char **argv){
 	uint8_t buf[1024];
 	header heading;
 	fd fdlinks;
+	int cur;
 
 	while (!feof(archive)) {
 		if (!fscanf(archive, "%d%s%d", heading.file_size, heading.hash, heading.file_count)) {
 			break;
 		}
-		fread(archive, "%s%s", fdlinks.file_name, fdlinks.perms);
+		fscanf(archive, "%s%s", fdlinks.file_name, fdlinks.perms);
 		bool extract = true;
 		for (size_t i = 2; i < argc; ++i) {
 			extract = false;
@@ -268,19 +279,20 @@ int extract(int argc, char **argv){
 		}
 		fseek(archive, sizeof(fd)*(heading.file_count-1), SEEK_SET);
 		if (extract) {
-		        int cur = ftell(archive);
-      }
-			FILE *out = fopen(fdlinks.file_name, "w");
-			int fileSizeCounter = heading.file_size;
-			while (s.st_size) {
-				size_t n = fread(buf, 1, heading.file_size, archive);
-				fwrite(buf, n, 1, out);
-				fileSizeCounter -= n;
-			}
-			fclose(out);
-			chmod(fdlinks.file_name, fdlinks.perms);
-			fseek(archive, cur, SEEK_SET);
+			cur = ftell(archive);
+		} else {
+			cur = 0;
 		}
+		FILE *out = fopen(fdlinks.file_name, "w");
+		int fileSizeCounter = heading.file_size;
+		while (s.st_size) {
+			size_t n = fread(buf, 1, heading.file_size, archive);
+			fwrite(buf, n, 1, out);
+			fileSizeCounter -= n;
+		}
+		fclose(out);
+		chmod(fdlinks.file_name, fdlinks.perms);
+		fseek(archive, cur, SEEK_SET);
 	}
 	fclose(archive);
 	return 0;
