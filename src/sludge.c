@@ -262,7 +262,7 @@ int extract(int argc, char **argv){
 		if (!fscanf(archive, "%d%s%d", heading.file_size, heading.hash, heading.file_count)) {
 			break;
 		}
-		fread(archive, "%s%s", fdlinks.file_name, fdlinks.perms);
+		fscanf(archive, "%s%s", fdlinks.file_name, fdlinks.perms);
 		bool extract = true;
 		for (size_t i = 2; i < argc; ++i) {
 			extract = false;
