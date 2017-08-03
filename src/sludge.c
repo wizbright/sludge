@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
 #include <getopt.h>
 #include "crc32.h"
 // TODO: Add indexing of files
@@ -26,7 +27,7 @@
 */
 
 typedef struct header {
-  st_size    file_size;
+  size_t     file_size;
   uint32_t   hash;
   uint8_t    file_count;
 } header;
@@ -52,31 +53,119 @@ int permissionPrint(mode_t perms) {
 
 int update(int argc, char **argv, const char *mode) {
 	FILE *archive = fopen(argv[1], mode);
+	if (archive == NULL) {
+	  fprintf(stderr,"Error opening archive %s. Exiting...\n",argv[1]);
+	  return 1;
+	}
 	struct stat s;
-	uint8_t buf[1024];
+	fd *file_descript;
+	header file_header;
+	uint32_t hash;
+	bool found;
+	uint8_t *buf;
 	for (int i = 2; i < argc; i++) {
 		if (stat(argv[i], &s) == -1) {
 			fprintf(stderr, "Failed to stat file %s\n", argv[i]);
 			return 1;
 		}
-		if(multi(argc, argv){
-			//handle identical files
-			break;
-		}
-		fwrite(&s.st_size, sizeof(s.st_size), 1, archive);
-		fwrite(&s.st_mode, sizeof(s.st_mode), 1, archive);
-		size_t l = strlen(argv[i]);
-		fwrite(&l, sizeof(size_t), 1, archive);
-		fwrite(argv[i], l, 1, archive);
-
 		FILE *in = fopen(argv[i], "r");
-		while (!feof(in)) {
-			size_t n = fread(buf, 1, sizeof(buf), in);
-			fwrite(buf, 1, n, archive);
+		if (in == NULL) {
+		  fprintf(stderr,"Failed to open file %s for reading",argv[i]);
+		  fclose(archive);
+		  return 1;
+		}
+		found = false;
+
+		buf = (uint8_t*) malloc(sizeof(uint8_t) * s.st_size);
+		if ((fread(buf,sizeof(uint8_t), s.st_size,in)) != s.st_size) {
+		    fprintf(stderr,"Error reading data from file %s. Exiting...\n",argv[i]);
+		    fclose(in);
+		    fclose(archive);
+		    free(buf);
+		    return 1;
+		}
+		hash = crc32(0,buf,s.st_size);
+		
+		int loc;
+		while (!feof(archive) && !found) {
+		  loc = ftell(archive);
+		  if (!fread(&file_header, sizeof(struct header), 1, archive)) {
+		    break;
+		  }
+		  if (hash != file_header.hash) {
+		    fseek(archive, (file_header.file_size+ file_header.file_count*(sizeof(struct fd))),SEEK_CUR);
+		  } else {
+		    found = true;
+		    break;
+		  }
+		}
+		
+		if (found) {
+		  file_descript = (fd*) malloc (sizeof(struct fd) * file_header.file_count);
+		  fread(&file_descript,sizeof(struct fd),file_header.file_count,archive);
+		  found = false;
+		  for (int j = 0; j < file_header.file_count; j ++) {
+		    if (strcmp(file_descript[j].file_name,argv[i]))
+			found = true;
+		  }
+		  if (found) {
+		    printf("File %s already exists in archive %s.\n",argv[i], argv[1]);
+		  } else {
+		    int num_items = file_header.file_count;
+		    file_header.file_count++;
+		    int file_start = ftell(archive);
+		    FILE* temp = fopen(".temp","a+");
+		    fclose(archive);
+		    archive = fopen(argv[1], "r");
+		    free(buf);
+		    buf = (uint8_t*) malloc (sizeof(uint8_t) * 512);
+		    int bytes;
+		    while (loc) {
+		      if((bytes = fread(&buf, sizeof(uint8_t), 512, archive)) == 512) {
+			fwrite(&buf, sizeof(uint8_t), 512, temp);
+			loc -= 512;
+		      } else {
+			fwrite(&buf, sizeof(uint8_t), bytes, temp);
+			loc -= bytes;
+		      }
+		    }
+		    fwrite(&file_header,sizeof(struct header), 1, temp);
+		    fwrite(&file_descript,sizeof(struct fd), num_items, temp);
+		    strcpy(file_descript[0].file_name, argv[i]);
+		    file_descript[0].perms = s.st_mode;
+		    fwrite(&file_descript,sizeof(struct fd), 1, temp);
+		    fseek(archive, file_start, SEEK_SET);
+		    while (!feof(archive)) {
+		      if ((bytes = fread(&buf, sizeof(uint8_t), 512, archive)) == 0) {
+			break;
+		      } else {
+			fwrite(&buf, sizeof(uint8_t), bytes, temp);
+		      }
+		    }
+		    fclose(temp);
+		    fclose(archive);
+		    remove(argv[1]);
+		    rename(".temp", argv[1]);
+		    printf("File %s written to archive %s.\n",argv[i], argv[1]);
+		  }
+		} else {
+		  fclose(archive);
+		  archive = fopen(argv[1],"a+");
+		  file_header.hash = hash;
+		  file_header.file_size = s.st_size;
+		  file_header.file_count = 1;
+		  file_descript[0].perms = s.st_mode;
+		  strcpy(file_descript[0].file_name, argv[i]);
+		  fwrite(&file_header, sizeof(struct header), 1, archive);
+		  fwrite(file_descript, sizeof(struct fd), 1, archive);
+		  fwrite(buf,sizeof(uint8_t), s.st_size, archive);
+		  fclose(archive);
+		  printf("File %s written to archive %s.\n",argv[i], argv[1]);
 		}
 		fclose(in);
-	}
-	fclose(archive);
+	        free(buf);
+                free(file_descript);
+	}	
 	return 0;
 }
 
@@ -87,26 +176,20 @@ int list(int argc, char **argv) {
 	  fprintf(stderr,"Error opening archive %s. Exiting...\n",argv[1]);
 	  return 1;
 	}
-	struct stat s;
-	uint8_t buf[1024];
+	fd file_descript;
+	header file_header;
 	while (!feof(archive)) {
-		if (!fread(&s.st_size, sizeof(s.st_size), 1, archive)) {
-			break;
-		}
-		fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
-		uint32_t hash, offset;
-		fread(&hash, sizeof(hash), 1, archive);
-		fread(&hash, sizeof(offset), 1, archive);
-		size_t l;
-		fread(&l, sizeof(size_t), 1, archive);
-		char name[l + 1];
-		fread(name, l, 1, archive);
-		name[l] = 0;
-		permissionsPrint(s.st_mode);
-		printf("\t%s\n", name);
-		if (!offset) {
-		    fseek(archive,s.st_size,SEEK_CUR);
-		}
+	  if (!fread(&file_header, sizeof(struct header), 1, archive)) {
+	    break;
+	  }
+	  printf("File listing:\n");
+	  for (int i = 0; i < file_header.file_count; i++) {
+	    fread(&file_descript,sizeof(struct fd), 1, archive);
+	    printf(" - ");
+	    permissionPrint(file_descript.perms);
+	    printf("\t%s\n",file_descript.file_name);
+	  }
+	  fseek(archive,file_header.file_size,SEEK_CUR);		
 	}
 	fclose(archive);
 	return 0;
