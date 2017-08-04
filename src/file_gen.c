@@ -14,19 +14,19 @@ int main() {
     "To this end, Communists of various nationalities have assembled in London and sketched the following manifesto, to be published in the English, French, German, Italian, Flemish and Danish languages.\n\0";
 
   FILE* outfile;
-  outfile = fopen("test_file_1.txt", "r+");
+  outfile = fopen("test_file_1.txt", "w+");
   fwrite(file_contents_1, sizeof(char), strlen(file_contents_1),outfile);
   fclose(outfile);
 
-  outfile = fopen("test_file_2.txt", "r+");
+  outfile = fopen("test_file_2.txt", "w+");
   for (int i = 0; i < 50; i++) {
     fwrite(file_contents_2, sizeof(char), strlen(file_contents_2), outfile);
   }
   fclose(outfile);
 
-  link("test_file_2.txt", "test_file_2.txt");
+  link("test_file_2.txt", "test_file_3.txt");
 
-  outfile = fopen("test_file_4.txt", "r+");
+  outfile = fopen("test_file_4.txt", "w+");
   fwrite(file_contents_3, sizeof(char), strlen(file_contents_3), outfile);
   fclose(outfile);
 
