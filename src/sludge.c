@@ -88,11 +88,11 @@ int update(int argc, char **argv, const char *mode) {
 		buf = (uint8_t*) malloc(sizeof(uint8_t) * s.st_size);
 		fseek(archive, 0, SEEK_SET);
 		if ((fread(buf,sizeof(uint8_t), s.st_size,in)) != s.st_size) {
-		    fprintf(stderr,"Error reading data from file %s. Exiting...\n",argv[i]);
+		    fprintf(stderr,"Error reading data from file %s. Skipping...\n",argv[i]);
 		    fclose(in);
 		    fclose(archive);
 		    free(buf);
-		    return 1;
+		    break;
 		}
 		hash = crc32(0,buf,s.st_size);
 
@@ -119,7 +119,7 @@ int update(int argc, char **argv, const char *mode) {
 		  }
 		  if (found) {
 		    printf("File %s already exists in archive %s.\n",argv[i], argv[1]);
-		    return 1;
+		    break;
 		  } else {
 		    num_items = file_header.file_count;
 		    file_header.file_count++;
@@ -127,8 +127,10 @@ int update(int argc, char **argv, const char *mode) {
 		    temp = fopen(".temp","w+");
 		    fclose(archive);
 		    archive = fopen(argv[1], "r");
+		    fseek(archive,0,SEEK_SET);
 		    free(buf);
 		    buf = (uint8_t*) malloc (sizeof(uint8_t) * 512);
+		    bytes = 512;
 		    while (loc != 0) {
 		      if (loc < 512) {
 			bytes = loc;
@@ -136,10 +138,10 @@ int update(int argc, char **argv, const char *mode) {
 		      if((bytes = (fread(buf, sizeof(uint8_t), bytes, archive))) == 0) {
 			break;
 		      } else if (bytes == 512) {
-			fwrite(&buf, sizeof(uint8_t), 512, temp);
+			fwrite(buf, sizeof(uint8_t), 512, temp);
 			loc -= 512;
 		      } else {
-			fwrite(&buf, sizeof(uint8_t), bytes, temp);
+			fwrite(buf, sizeof(uint8_t), bytes, temp);
 			loc -= bytes;
 		      }
 		    }
@@ -147,13 +149,13 @@ int update(int argc, char **argv, const char *mode) {
 		    fwrite(&file_descript,sizeof(struct fd), num_items, temp);
 		    strcpy(file_descript[0].file_name, argv[i]);
 		    file_descript[0].perms = s.st_mode;
-		    fwrite(&file_descript,sizeof(struct fd), 1, temp);
+		    fwrite(file_descript,sizeof(struct fd), 1, temp);
 		    fseek(archive, file_start, SEEK_SET);
 		    while (!feof(archive)) {
-		      if ((bytes = fread(&buf, sizeof(uint8_t), 512, archive)) == 0) {
+		      if ((bytes = fread(buf, sizeof(uint8_t), 512, archive)) == 0) {
 			break;
 		      } else {
-			fwrite(&buf, sizeof(uint8_t), bytes, temp);
+			fwrite(buf, sizeof(uint8_t), bytes, temp);
 		      }
 		    }
 		    fclose(temp);
@@ -178,9 +180,10 @@ int update(int argc, char **argv, const char *mode) {
 		  fwrite(buf,sizeof(uint8_t), s.st_size, archive);
 		  fclose(archive);
 		  printf("File %s written to archive %s.\n",argv[i], argv[1]);
+		  free(buf);
+		  free(file_descript);
 		}
 		fclose(in);
-                free(file_descript);
 	}
 	return 0;
 }
