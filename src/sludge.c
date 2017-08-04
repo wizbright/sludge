@@ -136,6 +136,7 @@ int update(int argc, char **argv, const char *mode) {
 			bytes = loc;
 		      }
 		      if((bytes = (fread(buf, sizeof(uint8_t), bytes, archive))) == 0) {
+			
 			break;
 		      } else if (bytes == 512) {
 			fwrite(buf, sizeof(uint8_t), 512, temp);
@@ -268,37 +269,52 @@ int extract(int argc, char **argv){
 	struct stat s;
 	uint8_t buf[1024];
 	header heading;
-	fd fdlinks;
-	int cur;
+	fd *fdlinks;
+	int cur, j, bytes;
+	bool extract;
 
-	while (!feof(archive)) {
+	for (int i = 2; i < argc; i++) {
+	  fseek(archive, 0, SEEK_SET);
+	  while (!feof(archive)) {
 		
-	  fread(&heading, sizeof(struct header), 1, archive);
-	  fread(&fdlinks, sizeof(struct fd), 1, archive);
-		bool extract = true;
-		for (size_t i = 2; i < argc; ++i) {
-			extract = false;
-			if (argc == 2 || strcmp(argv[i], fdlinks.file_name) == 0) {
-				extract = true;
-				break;
-			}
+	    if (!fread(&heading, sizeof(struct header), 1, archive)) {
+	      break;
+	    }
+	    fdlinks = (fd*) malloc (sizeof(struct fd) * heading.file_count);    
+	    fread(fdlinks, sizeof(struct fd), 2, archive);
+	    extract = false;
+	    for (j = 0; j < heading.file_count; j++) {
+	      if (!strcmp(argv[i],fdlinks[j].file_name)) {
+		extract = true;
+		break;
+	      }
+	    }
+	    if (!extract) {
+	      fseek(archive, heading.file_size, SEEK_CUR);
+	    } else {
+	      FILE *fout = fopen(argv[i],"r+");
+	      if (fout == NULL) {
+		fprintf(stderr, "Error opening file '%s' for writing. Skipping...\n",argv[i]);
+		break;
+		fclose(fout);
+	      }
+	      while(heading.file_size != 0) {
+		if (heading.file_size < 1024) {
+		  bytes = heading.file_size;
 		}
-		fseek(archive, sizeof(fd)*(heading.file_count-1), SEEK_SET);
-		if (extract) {
-			cur = ftell(archive);
+		if (!(bytes = fread(buf,sizeof(uint8_t), bytes, archive))) {
+		  break;
 		} else {
-			cur = 0;
+		  fwrite(buf, sizeof(uint8_t), bytes, fout);
+		  heading.file_size -= bytes;
 		}
-		FILE *out = fopen(fdlinks.file_name, "w");
-		int fileSizeCounter = heading.file_size;
-		while (fileSizeCounter != 0) {
-			size_t n = fread(buf, 1, heading.file_size, archive);
-			fwrite(buf, n, 1, out);
-			fileSizeCounter -= n;
-		}
-		fclose(out);
-		chmod(fdlinks.file_name, fdlinks.perms);
-		fseek(archive, cur, SEEK_SET);
+	      }
+	      fclose(fout);
+	      chmod(argv[i], fdlinks[j].perms);
+	      free(fdlinks);
+	      break;
+	    }
+	  }
 	}
 	fclose(archive);
 	return 0;
