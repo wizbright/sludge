@@ -33,7 +33,6 @@ int removal(int argc, char **argv);
 int update(int argc, char **argv, const char *mode);
 int list(int argc, char **argv);
 
-
 typedef struct header {
   off_t    file_size;
   uint32_t   hash;
@@ -57,7 +56,6 @@ int permissionPrint(mode_t perms) {
   printf( (perms & S_IXOTH) ? "x" : "-");
   return 0;
 }
-
 
 int update(int argc, char **argv, const char *mode) {
   FILE *archive , *temp, *in;
@@ -97,7 +95,6 @@ int update(int argc, char **argv, const char *mode) {
 		    return 1;
 		}
 		hash = crc32(0,buf,s.st_size);
-
 
 		while (!feof(archive) && !found) {
 		  loc = ftell(archive);
@@ -232,6 +229,18 @@ int removal(int argc, char **argv) {
 			if (!fread(&file_header, sizeof(struct header), 1, archive)) {
 				break;
 			}
+			fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
+			size_t l;
+			fread(&l, sizeof(size_t), 1, archive);
+			char name[l + 1];
+			fread(name, l, 1, archive);
+			name[l] = 0;
+			if(argv[1] == name)
+				break;
+			while (s.st_size) {
+				size_t n = fread(buf, 1, s.st_size, archive);
+				s.st_size -= n;
+      }
 			int j = 0;
 			bool found = false;
 			file_descript = (fd*) malloc (sizeof(struct fd) * file_header.file_count);
@@ -271,10 +280,13 @@ int extract(int argc, char **argv){
 	int cur;
 
 	while (!feof(archive)) {
-		if (!fscanf(archive, "%d%s%d", heading.file_size, heading.hash, heading.file_count)) {
+		if (!fread(heading.file_size, sizeof(off_t), 1, archive) ||
+			!fread(heading.hash, sizeof(uint32_t), 1, archive) ||
+			!fread(heading.file_count, sizeof(uint8_t), 1, archive)) {
 			break;
 		}
-		fscanf(archive, "%s%s", fdlinks.file_name, fdlinks.perms);
+		fread(fdlinks.file_name, sizeof(char)*256, 1, archive);
+		fread(fdlinks.perms, sizeof(mode_t), 1, archive);
 		bool extract = true;
 		for (size_t i = 2; i < argc; ++i) {
 			extract = false;
