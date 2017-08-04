@@ -61,7 +61,7 @@ int permissionPrint(mode_t perms) {
 
 int update(int argc, char **argv, const char *mode) {
   FILE *archive , *temp, *in;
-  
+
 	struct stat s;
 	fd *file_descript;
 	header file_header;
@@ -69,7 +69,7 @@ int update(int argc, char **argv, const char *mode) {
 	bool found;
 	uint8_t *buf;
 	int loc, cur, bytes, num_items, file_start;
-	
+
 	archive = fopen(argv[1], mode);
 	if (archive == NULL) {
 	  fprintf(stderr,"Error opening archive %s. Exiting...\n",argv[1]);
@@ -98,7 +98,7 @@ int update(int argc, char **argv, const char *mode) {
 		}
 		hash = crc32(0,buf,s.st_size);
 
-	
+
 		while (!feof(archive) && !found) {
 		  loc = ftell(archive);
 		  if (!fread(&file_header, sizeof(struct header), 1, archive)) {
@@ -257,7 +257,7 @@ int removal(int argc, char **argv) {
 			}
 		}
 	}
-	
+
 	fclose(archive);
 	return 0;
 }
@@ -307,7 +307,7 @@ int extract(int argc, char **argv){
 int main(int argc, char **argv) {
 	const char *usage =
 		"	sludge is an archiving utility\n"
-		"Default: ./sludge <archiveName> <file> etc.\n"
+		"Create: ./sludge -c <archiveName> <file> etc.\n"
 		"	Archives all files passed to it.\n"
 		"List: 	  ./sludge -l <acrhiveName>\n"
 		"	Lists files from the archive.\n"
@@ -316,9 +316,10 @@ int main(int argc, char **argv) {
 		"Extract: ./sludge -e <archiveName> <file>\n"
 		"	Extracts all files unless giving a filename.\n"
 		"Remove: ./sludge -r <archiveName> <file>\n"
-		"	Removes the specified file from the archive.\n";
-	switch (getopt(argc, argv, "l:a::e::")) {
-        	case 'l':
+		"	Removes the specified file from the archive.\n"
+		"Default: Shows this~\n";
+	switch (getopt(argc, argv, "l:a::e::c::")) {
+       	case 'l':
 			return list(argc - 1, argv + 1);
 		case 'a':
 			return update(argc - 1, argv + 1, "r+");
@@ -326,11 +327,10 @@ int main(int argc, char **argv) {
 			return extract(argc - 1, argv + 1);
 		case 'r':
 			return removal(argc - 1, argv + 1);
+		case 'c':
+			return update(argc -1, argv + 1, "w+");
 		default:
-			if (argc < 2) {
-				fprintf(stderr, "%s", usage);
-				return 1;
-			}
-			return update(argc, argv, "w+");
+			fprintf(stderr, "%s", usage);
+			return 1;
 	}
 }
