@@ -259,13 +259,13 @@ int extract(int argc, char **argv){
 	int cur;
 
 	while (!feof(archive)) {
-		if (!fread(heading.file_size, sizeof(off_t), archive) ||
-			!fread(heading.hash, sizeof(uint32_t), archive) ||
-			!fread(heading.file_count, sizeof(uint8_t), archive)) {
+		if (!fread(heading.file_size, sizeof(off_t), 1, archive) ||
+			!fread(heading.hash, sizeof(uint32_t), 1, archive) ||
+			!fread(heading.file_count, sizeof(uint8_t), 1, archive)) {
 			break;
 		}
-		fread(fdlinks.file_name, sizeof(char)*256, archive);
-		fread(fdlinks.perms, sizeof(mode_t), archive);
+		fread(fdlinks.file_name, sizeof(char)*256, 1, archive);
+		fread(fdlinks.perms, sizeof(mode_t), 1, archive);
 		bool extract = true;
 		for (size_t i = 2; i < argc; ++i) {
 			extract = false;
