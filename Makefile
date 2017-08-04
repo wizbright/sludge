@@ -1,27 +1,29 @@
 .PHONY: files
-
+CC = gcc -g
 default: all
 
 all: sludge files
 
 sludge: sludge.o crc32.o
-	gcc -o sludge sludge.o crc32.o
-	mv sludge ./bin
+	$(CC) -o sludge sludge.o crc32.o
+	mv sludge bin/sludge
 	rm *.o
 
 sludge.o: src/sludge.c src/crc32.h
-	gcc -c src/sludge.c
+	$(CC) -c src/sludge.c
 
 crc32.o: src/crc32.c src/crc32.h
-	gcc -c src/crc32.c
+	$(CC) -c src/crc32.c
 
 file_gen: src/file_gen.c
-	gcc -o src/file_gen.c -o file_gen
-	mv file_gen execs/
+	$(CC) src/file_gen.c -o file_gen
+	mv file_gen bin/file_gen
 
 files: file_gen
-	./execs/file_gen
+	./bin/file_gen
+	mv test_file*.txt bin/
 
 clean:
 	rm *.o -rf
-	rm ./bin/sludge
+	rm ./bin/*
+
