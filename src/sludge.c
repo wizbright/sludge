@@ -76,13 +76,13 @@ int update(int argc, char **argv, const char *mode) {
 	for (int i = 2; i < argc; i++) {
 		if (stat(argv[i], &s) == -1) {
 			fprintf(stderr, "Failed to stat file %s\n", argv[i]);
-			return 1;
+			break;
 		}
 		in = fopen(argv[i], "r+");
 		if (in == NULL) {
 		  fprintf(stderr,"Failed to open file %s for reading",argv[i]);
 		  fclose(archive);
-		  return 1;
+		  break;
 		}
 		found = false;
 		buf = (uint8_t*) malloc(sizeof(uint8_t) * s.st_size);
@@ -204,7 +204,7 @@ int list(int argc, char **argv) {
 	    printf(" - ");
 	    permissionPrint(file_descript.perms);
 	    printf("\t%ud",file_header.hash);
-	    printf("\t%dB",file_header.file_size);
+	    printf("\t%zu",file_header.file_size);
 	    printf("\t%s\n",file_descript.file_name);
 	  }
 	  fseek(archive,file_header.file_size,SEEK_CUR);
@@ -223,25 +223,14 @@ int removal(int argc, char **argv) {
 	struct fd *file_descript;
 	struct header file_header;
 	uint8_t *buf;
+	int j;
 	for(int i = 2; i < argc; i++){
 		while (!feof(archive)) {
 		  int loc = ftell(archive);
 			if (!fread(&file_header, sizeof(struct header), 1, archive)) {
 				break;
 			}
-			fread(&s.st_mode, sizeof(s.st_mode), 1, archive);
-			size_t l;
-			fread(&l, sizeof(size_t), 1, archive);
-			char name[l + 1];
-			fread(name, l, 1, archive);
-			name[l] = 0;
-			if(argv[1] == name)
-				break;
-			while (s.st_size) {
-				size_t n = fread(buf, 1, s.st_size, archive);
-				s.st_size -= n;
-      }
-			int j = 0;
+			j = 0;
 			bool found = false;
 			file_descript = (fd*) malloc (sizeof(struct fd) * file_header.file_count);
 			fread(file_descript, sizeof(struct fd), file_header.file_count, archive);
@@ -280,13 +269,9 @@ int extract(int argc, char **argv){
 	int cur;
 
 	while (!feof(archive)) {
-		if (!fread(heading.file_size, sizeof(off_t), 1, archive) ||
-			!fread(heading.hash, sizeof(uint32_t), 1, archive) ||
-			!fread(heading.file_count, sizeof(uint8_t), 1, archive)) {
-			break;
-		}
-		fread(fdlinks.file_name, sizeof(char)*256, 1, archive);
-		fread(fdlinks.perms, sizeof(mode_t), 1, archive);
+		
+	  fread(&heading, sizeof(struct header), 1, archive);
+	  fread(&fdlinks, sizeof(struct fd), 1, archive);
 		bool extract = true;
 		for (size_t i = 2; i < argc; ++i) {
 			extract = false;
@@ -303,7 +288,7 @@ int extract(int argc, char **argv){
 		}
 		FILE *out = fopen(fdlinks.file_name, "w");
 		int fileSizeCounter = heading.file_size;
-		while (s.st_size) {
+		while (fileSizeCounter != 0) {
 			size_t n = fread(buf, 1, heading.file_size, archive);
 			fwrite(buf, n, 1, out);
 			fileSizeCounter -= n;
